@@ -1,0 +1,49 @@
+# Node.js dependencies
+whack-a-mole-frontend/node_modules/
+whack-a-mole-backend/node_modules/
+
+# Build output
+whack-a-mole-frontend/build/
+whack-a-mole-backend/build/
+whack-a-mole-frontend/.next/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+whack-a-mole-frontend/.pnp
+whack-a-mole-frontend/.pnp.js
+whack-a-mole-backend/.pnp
+whack-a-mole-backend/.pnp.js
+
+# IDE files (e.g., VSCode, JetBrains)
+.vscode/
+.idea/
+
+# Mac system files
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage directory (for test coverage reports)
+whack-a-mole-frontend/coverage/
+whack-a-mole-backend/coverage/
+
+# Operating system files
+Thumbs.db
+Desktop.ini
+
+# Frontend-specific (for Next.js or other React apps)
+whack-a-mole-frontend/.next/
+
+# Backend-specific (example for a Node.js backend)
+whack-a-mole-backend/dist/
+whack-a-mole-backend/coverage/
