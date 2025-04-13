@@ -11,7 +11,7 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Default Vite development server
+    origin: ["http://localhost:5173","https://keen-bonefish-strong.ngrok-free.app"], // Default Vite development server
     methods: ["GET", "POST"]
   }
 });
@@ -24,14 +24,24 @@ let gameState = {
   countdown: 3,
   timeLeft: 60,
   molePlayerId: null,
-  currentMolePosition: -1
+  currentMolePosition: -1,
+  lastMoveTime: 0,
+  consecutiveEscapes: 0
 };
 
 let gameInterval = null;
+let moleScoreInterval = null;
+
+// Constants for mole scoring
+const MOLE_SURVIVAL_POINTS = 1;  // Points per survival interval
+const MOLE_SURVIVAL_INTERVAL = 3; // Seconds between survival points
+const MOLE_ESCAPE_POINTS = 2;    // Points for a successful escape
+const CONSECUTIVE_ESCAPE_BONUS = 1; // Additional points for consecutive escapes
 
 // Function to reset the game
 function resetGame() {
   clearInterval(gameInterval);
+  clearInterval(moleScoreInterval);
   
   // Preserve players but reset scores and roles
   const players = { ...gameState.players };
@@ -47,7 +57,9 @@ function resetGame() {
     countdown: 3,
     timeLeft: 60,
     molePlayerId: null,
-    currentMolePosition: -1
+    currentMolePosition: -1,
+    lastMoveTime: 0,
+    consecutiveEscapes: 0
   };
   
   io.emit('gameState', gameState);
@@ -121,6 +133,33 @@ io.on('connection', (socket) => {
         gameState.countdown === 0 && 
         socket.id === gameState.molePlayerId) {
       
+      const now = Date.now();
+      
+      // Check if this is an "escape" (moving from one hole to another)
+      if (gameState.currentMolePosition !== -1) {
+        gameState.lastMoveTime = now;
+        
+        // Award escape points only if the mole was visible for at least 1 second
+        if (now - gameState.lastMoveTime >= 1000) {
+          gameState.consecutiveEscapes++;
+          // Calculate bonus based on consecutive escapes
+          const escapePoints = MOLE_ESCAPE_POINTS + 
+                              (gameState.consecutiveEscapes - 1) * CONSECUTIVE_ESCAPE_BONUS;
+                              
+          // Add escape points to mole player's score
+          gameState.players[socket.id].score += escapePoints;
+          
+          // Inform mole player of escape points
+          socket.emit('escapePoints', {
+            points: escapePoints,
+            consecutive: gameState.consecutiveEscapes
+          });
+        }
+      } else {
+        // First movement, just record the time
+        gameState.lastMoveTime = now;
+      }
+      
       // Update mole position
       gameState.holes = Array(9).fill(false);
       gameState.holes[holeIndex] = true;
@@ -138,8 +177,11 @@ io.on('connection', (socket) => {
         socket.id !== gameState.molePlayerId && 
         gameState.holes[holeIndex]) {
       
-      // Increase player's score
+      // Increase whacker's score
       gameState.players[socket.id].score += 1;
+      
+      // Reset consecutive escapes
+      gameState.consecutiveEscapes = 0;
       
       // Hide the mole that was whacked
       gameState.holes[holeIndex] = false;
@@ -179,6 +221,23 @@ io.on('connection', (socket) => {
 
 // Function to start the actual gameplay
 function startGameplay() {
+  // Start giving points to the mole player for surviving
+  moleScoreInterval = setInterval(() => {
+    // Only give points if the mole is visible somewhere
+    if (gameState.currentMolePosition !== -1 && gameState.molePlayerId) {
+      // Add survival points to mole player's score
+      gameState.players[gameState.molePlayerId].score += MOLE_SURVIVAL_POINTS;
+      
+      // Inform mole player of survival points
+      io.to(gameState.molePlayerId).emit('survivalPoints', {
+        points: MOLE_SURVIVAL_POINTS
+      });
+      
+      // Update all clients with new score
+      io.emit('gameState', gameState);
+    }
+  }, MOLE_SURVIVAL_INTERVAL * 1000);
+
   // Game timer
   gameInterval = setInterval(() => {
     gameState.timeLeft--;
@@ -193,31 +252,47 @@ function startGameplay() {
 // Function to end the game
 function endGame() {
   clearInterval(gameInterval);
+  clearInterval(moleScoreInterval);
   
-  // Find the highest scoring player (among non-mole players)
-  let highestScore = -1;
-  let winners = [];
+  // Find winners in each category
+  let highestWhackerScore = -1;
+  let whackerWinners = [];
+  
+  // Mole already has their final score
   
   Object.entries(gameState.players).forEach(([id, player]) => {
-    // Skip the mole player when determining winner
-    if (!player.isMole && player.score > highestScore) {
-      highestScore = player.score;
-      winners = [player.name];
-    } else if (!player.isMole && player.score === highestScore) {
-      winners.push(player.name);
+    // Skip the mole player when determining whacker winners
+    if (!player.isMole && player.score > highestWhackerScore) {
+      highestWhackerScore = player.score;
+      whackerWinners = [player.name];
+    } else if (!player.isMole && player.score === highestWhackerScore) {
+      whackerWinners.push(player.name);
     }
   });
   
-  // Announce winners
-  if (winners.length > 0) {
-    const winnerMessage = winners.length === 1 
-      ? `${winners[0]} wins with ${highestScore} points!`
-      : `Tie between ${winners.join(' and ')} with ${highestScore} points!`;
+  // Get mole player name and score
+  const molePlayer = gameState.players[gameState.molePlayerId];
+  const moleName = molePlayer ? molePlayer.name : "Unknown";
+  const moleScore = molePlayer ? molePlayer.score : 0;
+  
+  // Prepare results message
+  let resultsMessage = `Game over!\n`;
+  
+  // Add mole result
+  resultsMessage += `Mole (${moleName}): ${moleScore} points\n`;
+  
+  // Add whacker results
+  if (whackerWinners.length > 0) {
+    const whackerMessage = whackerWinners.length === 1 
+      ? `Top Whacker: ${whackerWinners[0]} with ${highestWhackerScore} points!`
+      : `Top Whackers: ${whackerWinners.join(' and ')} with ${highestWhackerScore} points!`;
       
-    io.emit('gameOver', winnerMessage);
+    resultsMessage += whackerMessage;
   } else {
-    io.emit('gameOver', 'Game over! The mole escapes unscathed!');
+    resultsMessage += `No successful whackers.`;
   }
+      
+  io.emit('gameOver', resultsMessage);
   
   // Wait 5 seconds then reset the game
   setTimeout(resetGame, 5000);

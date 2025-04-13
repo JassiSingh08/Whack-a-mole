@@ -23,6 +23,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [isMole, setIsMole] = useState(false);
   const [message, setMessage] = useState('');
+  const [pointsMessage, setPointsMessage] = useState('');
 
   useEffect(() => {
     // Connect to the socket server
@@ -55,6 +56,16 @@ function App() {
       setTimeout(() => setMessage(''), 2000);
     });
 
+    newSocket.on('survivalPoints', ({ points }) => {
+      setPointsMessage(`+${points} survival points!`);
+      setTimeout(() => setPointsMessage(''), 1500);
+    });
+
+    newSocket.on('escapePoints', ({ points, consecutive }) => {
+      setPointsMessage(`+${points} escape points! (${consecutive}x streak)`);
+      setTimeout(() => setPointsMessage(''), 1500);
+    });
+
     newSocket.on('errorMessage', (msg) => {
       setMessage(msg);
       setTimeout(() => setMessage(''), 3000);
@@ -62,7 +73,7 @@ function App() {
 
     newSocket.on('gameOver', (msg) => {
       setMessage(msg);
-      setTimeout(() => setMessage(''), 5000);
+      setTimeout(() => setMessage(''), 8000);
     });
 
     newSocket.on('disconnect', () => {
@@ -115,6 +126,12 @@ function App() {
         </div>
       )}
 
+      {pointsMessage && isMole && (
+        <div className="points-popup">
+          {pointsMessage}
+        </div>
+      )}
+
       {!isConnected && (
         <div className="connection-status">
           Connecting to server...
@@ -141,9 +158,17 @@ function App() {
           <div className="role-indicator">
             {gameState.gameStarted ? (
               isMole ? (
-                <div className="mole-role">You are the MOLE!</div>
+                <div className="mole-role">
+                  <h3>You are the MOLE!</h3>
+                  <p>- Earn 1 point every 3 seconds for surviving</p>
+                  <p>- Earn 2+ points for successful escapes (moving between holes)</p>
+                  <p>- Consecutive escapes give bonus points!</p>
+                </div>
               ) : (
-                <div className="whacker-role">You are a WHACKER!</div>
+                <div className="whacker-role">
+                  <h3>You are a WHACKER!</h3>
+                  <p>Click on holes with the mole to earn points!</p>
+                </div>
               )
             ) : (
               <div>Waiting for game to start...</div>

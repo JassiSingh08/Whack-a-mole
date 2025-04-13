@@ -202,3 +202,78 @@ h1 {
 .player-score-value {
   font-weight: bold;
 }
+
+/* Add this to App.css */
+
+.points-popup {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #ffc107;
+  color: #212529;
+  padding: 15px 25px;
+  border-radius: 30px;
+  font-weight: bold;
+  font-size: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  animation: popup 1.5s ease-in-out;
+}
+
+@keyframes popup {
+  0% {
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+  }
+  20% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+}
+
+.role-indicator {
+  margin: 15px 0;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.mole-role {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+}
+
+.mole-role h3, .whacker-role h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.mole-role p, .whacker-role p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.whacker-role {
+  color: #004085;
+  background-color: #cce5ff;
+  border: 1px solid #b8daff;
+}
+
+.message-banner {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 15px;
+  border-radius: 5px;
+  margin: 20px 0;
+  font-weight: bold;
+  white-space: pre-line;
+}
